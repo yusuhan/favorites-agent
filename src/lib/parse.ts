@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import type { Item } from "./db";
+import type { Item } from "./types";
 
 export type Parsed = {
   source: Item["source"];
