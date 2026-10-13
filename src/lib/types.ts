@@ -5,7 +5,7 @@ export type Feedback = "done" | "later" | "dismissed";
 
 export type Item = {
   id: string;
-  source: "wechat" | "bilibili" | "web" | "text";
+  source: "wechat" | "bilibili" | "web" | "text" | "image";
   url: string | null;
   title: string | null;
   summary: string | null;

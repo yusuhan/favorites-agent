@@ -2,7 +2,7 @@
 
 import type { Feedback, Item } from "@/lib/types";
 
-const SOURCE_LABEL: Record<string, string> = { wechat: "公众号", bilibili: "B 站", web: "网页", text: "文字" };
+const SOURCE_LABEL: Record<string, string> = { wechat: "公众号", bilibili: "B 站", web: "网页", text: "文字", image: "截图" };
 
 const FEEDBACK: { value: Feedback; label: string }[] = [
   { value: "done", label: "做了" },
@@ -26,7 +26,7 @@ export default function ItemCard({
         <div className="text-xs opacity-60">
           {SOURCE_LABEL[item.source] ?? item.source} · 没收成功 · {date(item.created_at)}
         </div>
-        <p className="mt-1 break-all">{item.url ?? "（文字）"}</p>
+        <p className="mt-1 break-all">{item.url ?? (item.source === "image" ? "（截图）" : "（文字）")}</p>
         <p className="mt-1 text-red-600">{item.error}</p>
         {onDelete && (
           <button onClick={onDelete} className="mt-2 text-xs underline opacity-60">

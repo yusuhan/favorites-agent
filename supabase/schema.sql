@@ -7,7 +7,7 @@ create extension if not exists vector;
 create table if not exists items (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  source text not null check (source in ('wechat', 'bilibili', 'web', 'text')),
+  source text not null check (source in ('wechat', 'bilibili', 'web', 'text', 'image')),
   url text,
   title text,
   content text,
@@ -102,3 +102,17 @@ as $$
   order by i.embedding <=> query_embedding
   limit match_count;
 $$;
+
+-- 每周回顾邮件选中了哪些行动卡，避免连续几周推同一张，也用来算回顾带来的“做了”
+create table if not exists weekly_picks (
+  id bigserial primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  item_id uuid not null references items (id) on delete cascade,
+  sent_at timestamptz not null default now()
+);
+
+create index if not exists weekly_picks_user_sent_idx on weekly_picks (user_id, sent_at desc);
+
+alter table weekly_picks enable row level security;
+drop policy if exists "own weekly picks" on weekly_picks;
+create policy "own weekly picks" on weekly_picks for select using (user_id = auth.uid());

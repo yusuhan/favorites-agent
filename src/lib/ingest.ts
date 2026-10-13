@@ -2,8 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { chunkText } from "./chunk";
 import { embed, toPg } from "./embed";
 import { makeCard } from "./llm";
-import { findUrl, guessSource, parseInput } from "./parse";
+import { findUrl, guessSource, parseInput, type Parsed } from "./parse";
 import { ITEM_COLUMNS, type Item, type Reminder } from "./types";
+import { readImage } from "./vision";
 
 // 新收藏和旧收藏的相似度超过这个值才提醒。先拍一个起点，用评测集里的 40 个提醒场景调
 export const REMIND_MIN_SIMILARITY = 0.55;
@@ -11,11 +12,14 @@ const MAX_CHUNKS = 40;
 
 export type IngestResult = { item: Item; reminder: Reminder | null };
 
+// 一条收藏的来源：粘贴的文字/链接，或一张截图（data URL）
+export type IngestInput = { text: string } | { image: string };
+
 // 收一条：解析 → 生成行动卡 → 算向量入库 → 找一条相关旧收藏
 // 批量搬老收藏时 remind=false：那时用户不在“正在想这个话题”的时刻，提醒没意义，也会污染点开率
 export async function ingest(
   sb: SupabaseClient,
-  input: string,
+  input: IngestInput,
   note: string | null,
   remind = true,
 ): Promise<IngestResult> {
@@ -24,10 +28,12 @@ export async function ingest(
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     // 失败也记一条，用来算各来源的解析成功率
+    // 截图本身不存，只记一条失败
+    const text = "text" in input ? input.text : null;
     await sb.from("items").insert({
-      source: guessSource(input),
-      url: findUrl(input),
-      content: input,
+      source: text === null ? "image" : guessSource(text),
+      url: text === null ? null : findUrl(text),
+      content: text ?? "（截图）",
       note,
       status: "failed",
       error: message,
@@ -36,8 +42,9 @@ export async function ingest(
   }
 }
 
-async function ingestOk(sb: SupabaseClient, input: string, note: string | null, remind: boolean): Promise<IngestResult> {
-  const parsed = await parseInput(input);
+async function ingestOk(sb: SupabaseClient, input: IngestInput, note: string | null, remind: boolean): Promise<IngestResult> {
+  const parsed: Parsed =
+    "text" in input ? await parseInput(input.text) : { source: "image", url: null, ...(await readImage(input.image)) };
   const card = await makeCard(parsed.title, parsed.content);
   const chunks = chunkText(parsed.content).slice(0, MAX_CHUNKS);
   const itemText = [card.title, card.point, card.summary, note].filter(Boolean).join("\n");

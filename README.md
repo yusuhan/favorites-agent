@@ -8,14 +8,15 @@
 ## 现在能做什么
 
 - 邮箱验证码登录，每个人只看得到自己的收藏
-- 粘贴公众号、B 站、网页链接，或小红书、抖音的分享文案，生成行动卡：一句话要点 + 15 分钟内能做的小动作，按穿搭、美食、教程、认知、其他分类
-- 一次粘贴多条链接，批量搬老收藏
+- 粘贴公众号、B 站、网页链接、小红书和抖音的分享文案，或上传截图（可多张），生成行动卡：一句话要点 + 15 分钟内能做的小动作，按穿搭、美食、教程、认知、其他分类
+- 一次粘贴多条链接或上传多张截图，批量搬老收藏
 - 存新内容时，如果有足够相关的旧收藏，提示“你 X 周前也存过……”
 - 问答：只用自己的收藏回答并标出处，找不到就说不知道
 - 行动卡反馈（做了 / 以后再说 / 不感兴趣）、删除收藏
-- 提醒的点开和反馈、每次提问都记在数据库里，用来算指标和做评测
+- 每周日早上 9 点发一封回顾邮件，从还没做的行动卡里挑 3 张，4 周内不重复
+- 提醒的点开和反馈、每次提问、每周推了哪些卡都记在数据库里，用来算指标和做评测
 
-还没做：截图识别、每周回顾邮件、B 站字幕、注销账号。
+还没做：B 站字幕、注销账号、退订回顾邮件。截图只用来识别，不保存原图。
 
 ## 第一次配置
 
@@ -23,7 +24,7 @@
 2. 在 [Supabase](https://supabase.com) 建项目，到 SQL Editor 里整段运行 `supabase/schema.sql`
 3. Supabase 后台 Authentication → Email Templates → Magic Link，把正文改成包含验证码，例如：`你的登录验证码是 {{ .Token }}`。不改的话邮件里只有链接，没有验证码
 4. Supabase 自带的发信每小时只能发几封，拉真实用户前要在 Authentication → SMTP Settings 接自己的发信服务（如 Resend）
-5. 复制 `.env.example` 为 `.env.local`，填上 Supabase、DeepSeek、阿里云百炼的 key
+5. 复制 `.env.example` 为 `.env.local`，填上 Supabase、DeepSeek、阿里云百炼的 key。每周回顾邮件另外要 service role key、Resend 和 `CRON_SECRET`，只在部署后才会触发，本地可以先不填
 6. 运行：
 
 ```bash
@@ -55,6 +56,10 @@ npm run dev
 | `src/lib/parse.ts` | 各来源的链接解析 |
 | `src/lib/llm.ts` | 行动卡和问答的提示词（DeepSeek） |
 | `src/lib/embed.ts` | 向量（通义 text-embedding-v3） |
+| `src/lib/vision.ts` | 截图识别（通义千问 VL） |
+| `src/lib/image.ts` | 浏览器端压缩截图 |
+| `src/lib/weekly.ts` | 每周回顾挑卡规则和邮件模板 |
+| `src/app/api/cron/weekly/route.ts` | 每周回顾的定时任务，时间在 `vercel.json` |
 | `src/lib/chunk.ts` | 原文切块、批量链接拆分 |
 | `supabase/schema.sql` | 数据表、行级权限、检索函数 |
 
@@ -62,3 +67,4 @@ npm run dev
 
 - `src/lib/ingest.ts` 的 `REMIND_MIN_SIMILARITY`：相似度多高才提醒，现在是 0.55，要用评测集调
 - `src/app/api/ask/route.ts` 的 `TOP_K`：问答时取几段原文
+- `src/lib/weekly.ts` 的 `WEEKLY_COUNT`、`MIN_AGE_DAYS`、`REPEAT_AFTER_DAYS`：每周推几张、存了几天后才进回顾、多久不重复
